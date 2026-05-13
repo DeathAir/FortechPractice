@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import hashlib
 
 import jwt
@@ -17,14 +17,15 @@ class UserService:
         self.db = db
 
     async def hash_password(self, password: str) -> str:
-        return await hashlib.sha256(password.encode()).hexdigest()
+        return hashlib.sha256(password.encode()).hexdigest()
 
     async def verify_password(self, plain_password: str, password_hash: str) -> bool:
         return await self.hash_password(plain_password) == password_hash
 
     async def check_email_exist(self, email : str) -> bool:
         existing = await self.db.execute(Select(User).where(User.email == email))
-        return existing.scalar().one_or_none() is not None
+        result = existing.scalar()
+        return result is not None
 
     async def create_token(self, email: str):
         expire = datetime.utcnow() + datetime.timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -52,13 +53,12 @@ class UserService:
                 detail="Электронная почта уже существует"
             )
 
-        hashed_password = self.hash_password(user.password)
+        hashed_password = await self.hash_password(user.password)
         New_user = User(
             email=user.email,
             password_hash=hashed_password,
             phone=user.phone,
-            full_name=user.full_name,
-            role=user.role
+            fullname=user.fullname,
         )
 
         access_tocken = self.create_token(New_user.email)
@@ -67,7 +67,7 @@ class UserService:
         await self.db.commit()
         await self.db.refresh(new_user)
 
-        return await  new_user
+        return new_user
 
 
     async def update_user(self, user : UserUpdate) -> UserUpdate:
@@ -78,17 +78,19 @@ class UserService:
         return await updated_user
 
     async def login_user(self, user: UserLogin) -> UserLogin:
-        existing_user = self.db.execute(Select(User).where(User.email == user.email))
+        existing_user = await self.db.execute(Select(User).where(User.email == user.email))
+        result = existing_user.scalar_one_or_none()
 
-        if not existing_user:
+        if not result:
             raise HTTPException(status_code=401, detail="Неверный email или пароль")
 
         if not self.verify_password(user.password, existing_user.password_hash):
             raise HTTPException(status_code=401, detail="Неверный email или пароль")
 
+
         access_token = self.create_token(user.email)
         return  await {
-        "access_token": access_token, "get_login": existing_user
+        "access_token": access_token, "get_login": result
         }
 
 

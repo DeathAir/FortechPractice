@@ -1,11 +1,13 @@
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-import api
+
+from api.v1.user import router as user_router
+
 from config import settings
 
-app = FastAPI(title=settings.PROJECT_NAME,
-              debug=settings.DEBUG,
+app = FastAPI(title=settings.app_name,
+              debug=settings.debug,
               )
 
 app.add_middleware(
@@ -17,4 +19,4 @@ app.add_middleware(
 )
 
 
-app.include_router(api.v1.user)
+app.include_router(user_router, prefix="/api/v1/users")

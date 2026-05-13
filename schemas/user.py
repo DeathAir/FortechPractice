@@ -1,12 +1,12 @@
-import datetime
+from datetime import datetime
 
-from pydantic.v1 import BaseModel, Field
+from pydantic import BaseModel, Field
 
 from config import settings
 
 
 class UserBase(BaseModel):
-    name: str = Field(..., min_length=2, max_length=30)
+    fullname: str = Field(..., min_length=2, max_length=30)
     phone: str = Field(..., max_length=20)
     email: str = Field(..., max_length=25)
 
@@ -19,7 +19,7 @@ class UserLogin(BaseModel):
     password: str = Field(..., min_length=6, max_length=128)
 
 class UserUpdate(BaseModel):
-    name: str = Field(..., min_length=2, max_length=30)
+    fullname: str = Field(..., min_length=2, max_length=30)
     phone: str = Field(..., max_length=20)
 
 class UserResponse(UserBase):

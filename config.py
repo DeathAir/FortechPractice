@@ -15,13 +15,14 @@ class Settings(BaseSettings):
     ]
     static_dir: str = "static"
 
-    SECRET_KEY = "123456"
-    ALGORITHM = "HS256"
+    SECRET_KEY : str = "123456"
+    ALGORITHM : str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 7
 
 
     class Config:
         env_file = ".env"
+        env_file_encoding = "utf-8"
 
 settings = Settings()
