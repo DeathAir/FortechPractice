@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -22,7 +23,11 @@ class UserUpdate(BaseModel):
     fullname: str = Field(..., min_length=2, max_length=30)
     phone: str = Field(..., max_length=20)
 
-class UserResponse(UserBase):
+class UserResponse(BaseModel):
+    fullname: Optional[str]
+    phone: Optional[str]
+    email: Optional[str] = Field(None)
+    role: Optional[str] = Field(None)
     id: int
     created_at: datetime
 
@@ -32,5 +37,6 @@ class AccessToken(BaseModel):
     expires_in: int = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
 
 class RefreshToken(AccessToken):
+    email: str
     refresh_token: str
     refresh_expires_in: int = settings.REFRESH_TOKEN_EXPIRE_MINUTES * 24 * 3600

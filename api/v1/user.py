@@ -23,14 +23,14 @@ async def login(user: UserLogin, db : AsyncSession = Depends(get_db)):
 @router.post("auth/refresh", response_model=UserResponse, status_code=status.HTTP_200_OK)
 async def refresh(refresh_token: RefreshToken, db : AsyncSession = Depends(get_db)):
     service = UserService(db)
-    return await service.create_refresh_token(refresh_token)
+    return service.create_refresh_token(refresh_token.email)
 
 @router.get("users/me", response_model=UserResponse, status_code=status.HTTP_200_OK)
-async def me(id: int, db: AsyncSession = Depends(get_db)):
+async def me(id_user: int, db: AsyncSession = Depends(get_db)):
     service = UserService(db)
-    return await service.get_user_by_id(id)
+    return await service.get_user_by_id(id_user)
 
 @router.put("users/me", response_model=UserResponse, status_code=status.HTTP_200_OK)
-async def me(user: UserUpdate, db: AsyncSession = Depends(get_db)):
+async def me(id_user : int,user: UserUpdate, db: AsyncSession = Depends(get_db)):
     service = UserService(db)
-    return await service.update_user(user)
+    return await service.update_user(id_user, user)
