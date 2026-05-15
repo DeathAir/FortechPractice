@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 import bcrypt
 from jose import jwt
@@ -9,9 +9,9 @@ from sqlalchemy import Select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import User
-from schemas.user import UserCreate, UserUpdate, UserLogin, RefreshToken
+from models.user import AuditLog
 
-
+from schemas.user import UserCreate, UserUpdate, UserLogin
 
 
 class UserService:
@@ -25,7 +25,7 @@ class UserService:
         return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
     @staticmethod
-    def create_refresh_token(self, email: str) -> str:
+    def create_refresh_token(email: str) -> str:
         expire = datetime.utcnow() + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
         payload = {"sub": email, "exp": expire, "type": "refresh"}
         return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
@@ -58,6 +58,18 @@ class UserService:
     async def register_user(self, user : UserCreate) -> User:
 
         if await self.check_email_exist(user.email):
+            Logs = AuditLog(
+                user_id= None,
+                Actions="USER_REGISTER",
+                log_at=datetime.now(timezone.utc),
+                Target="auth/register",
+                Outcome="Failure "
+            )
+            logs = Logs
+            self.db.add(logs)
+            await self.db.commit()
+            await self.db.refresh(logs)
+
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Электронная почта уже существует"
@@ -70,12 +82,26 @@ class UserService:
             phone=user.phone,
             fullname=user.fullname,
         )
-
-        access_tocken = self.create_token(New_user.email)
         new_user = New_user
         self.db.add(new_user)
+
+        await self.db.flush()
+
+        Logs = AuditLog(
+            user_id=new_user.id,
+            Actions="USER_REGISTER",
+            log_at=datetime.now(timezone.utc),
+            Target="auth/register",
+            Outcome="Success "
+        )
+
+        logs = Logs
+        self.db.add(logs)
         await self.db.commit()
         await self.db.refresh(new_user)
+        await self.db.refresh(logs)
+
+        access_tocken = self.create_token(New_user.email)
 
         return new_user
 
@@ -99,13 +125,48 @@ class UserService:
         result = existing_user.scalar_one_or_none()
 
         if not result:
+            Logs = AuditLog(
+                user_id=None,
+                Actions="LOGIN_FAIL",
+                log_at=datetime.now(timezone.utc),
+                Target="auth/login",
+                Outcome="Failure "
+            )
+            logs = Logs
+            self.db.add(logs)
+            await self.db.commit()
+            await self.db.refresh(logs)
             raise HTTPException(status_code=401, detail="Неверный email или пароль")
 
         if not self.verify_password(user.password, result.password_hash):
+            Logs = AuditLog(
+                user_id=None,
+                Actions="LOGIN_FAIL",
+                log_at=datetime.now(timezone.utc),
+                Target="auth/login",
+                Outcome="Failure "
+            )
+            logs = Logs
+            self.db.add(logs)
+            await self.db.commit()
+            await self.db.refresh(logs)
             raise HTTPException(status_code=401, detail="Неверный email или пароль")
 
 
         access_token = self.create_token(user.email)
+        Logs = AuditLog(
+            user_id=result.id,
+            Actions="LOGIN_SUCCESS",
+            log_at=datetime.now(timezone.utc),
+            Target="auth/login",
+            Outcome="Success "
+        )
+
+        logs = Logs
+        self.db.add(logs)
+        await self.db.commit()
+        await self.db.refresh(logs)
+
         return {
             "access_token": access_token,
             "token_type": "bearer",
