@@ -1,24 +1,29 @@
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, status, Depends, Request
+from slowapi import Limiter
+
+from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
-from schemas.user import UserResponse, UserCreate, UserLogin, RefreshToken, UserUpdate, AuditLog
+
+from schemas.user import UserResponse, UserCreate, UserLogin, RefreshToken, UserUpdate
 from services.user_services import UserService
 
 router = APIRouter(
-    prefix="/api/v1",
-    tags=["user"],
+    tags=["user"]
 )
+limiter = Limiter(key_func=get_remote_address)
+
+@limiter.limit("5 per minute")
+@router.post("/auth/login", response_model=UserResponse, status_code=status.HTTP_200_OK)
+async def login(request: Request, user: UserLogin, db : AsyncSession = Depends(get_db)):
+    service = UserService(db)
+    return await service.login_user(user)
 
 
 @router.post("/auth/register", response_model=UserResponse, status_code=status.HTTP_200_OK)
 async def register(user: UserCreate, db : AsyncSession = Depends(get_db)):
     service = UserService(db)
     return await service.register_user(user)
-
-@router.post("/auth/login", response_model=UserResponse, status_code=status.HTTP_200_OK)
-async def login(user: UserLogin, db : AsyncSession = Depends(get_db)):
-    service = UserService(db)
-    return await service.login_user(user)
 
 @router.post("/auth/refresh", response_model=UserResponse, status_code=status.HTTP_200_OK)
 async def refresh(refresh_token: RefreshToken, db : AsyncSession = Depends(get_db)):

@@ -27,3 +27,12 @@ class AuditLog(Base):
     Actions = Column(Text, nullable=False)
     Target = Column(Text, nullable=False)
     Outcome = Column(Text, nullable=False)
+
+class Tockens(Base):
+    __tablename__ = "tockens"
+
+    id_tocken = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
+    id_users = Column(Integer, ForeignKey("users.id"))
+    accses_tocken = Column(String, nullable=True)
+    refresh_tocken = Column(String, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)

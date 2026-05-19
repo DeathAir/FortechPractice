@@ -2,14 +2,14 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import bcrypt
 from jose import jwt
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status,Request
 
 from config import settings
 from sqlalchemy import Select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import User
-from models.user import AuditLog
+from models.user import AuditLog, Tockens
 
 from schemas.user import UserCreate, UserUpdate, UserLogin
 
@@ -103,6 +103,16 @@ class UserService:
 
         access_tocken = self.create_token(New_user.email)
 
+        tocken = Tockens(
+            id_users=new_user.id,
+            accses_tocken = access_tocken,
+            created_at=datetime.utcnow()
+        )
+
+        self.db.add(tocken)
+        await self.db.commit()
+        await self.db.refresh(tocken)
+
         return new_user
 
 
@@ -123,7 +133,6 @@ class UserService:
     async def login_user(self, user: UserLogin) -> dict:
         existing_user = await self.db.execute(Select(User).where(User.email == user.email))
         result = existing_user.scalar_one_or_none()
-
         if not result:
             Logs = AuditLog(
                 user_id=None,
@@ -151,8 +160,6 @@ class UserService:
             await self.db.commit()
             await self.db.refresh(logs)
             raise HTTPException(status_code=401, detail="Неверный email или пароль")
-
-
         access_token = self.create_token(user.email)
         Logs = AuditLog(
             user_id=result.id,
